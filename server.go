@@ -1,4 +1,3 @@
-// Package sping implements secure ping
 package sping
 
 import (
@@ -7,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"sync"
 
@@ -32,6 +30,7 @@ const (
 type PingServer struct {
 	sync.Mutex
 	sequence map[string]int64 // mapping of named hosts to pings received
+	srv      *grpc.Server     // handle to the grpc server
 }
 
 // Echo implements echo.SecurePing
@@ -67,7 +66,7 @@ func (s *PingServer) Echo(ctx context.Context, ping *pb.Ping) (*pb.Pong, error) 
 	}
 
 	// Log the ping and return
-	log.Printf("received ping %d/%d from %s\n", ping.Sseq, rseq, ping.Sender)
+	Output("received ping %d/%d from %s\n", ping.Sseq, rseq, ping.Sender)
 	return pong, nil
 }
 
@@ -109,10 +108,80 @@ func (s *PingServer) Serve(port uint) error {
 	})
 
 	// Create a new GRPC server with the credentials
-	srv := grpc.NewServer(grpc.Creds(creds))
-	pb.RegisterSecurePingServer(srv, s)
+	s.srv = grpc.NewServer(grpc.Creds(creds))
+	pb.RegisterSecurePingServer(s.srv, s)
 
-	if err := srv.Serve(lis); err != nil {
+	if err := s.srv.Serve(lis); err != nil {
+		return fmt.Errorf("grpc serve error: %s", err)
+	}
+
+	return nil
+}
+
+// Shutdown the grpc server instance
+func (s *PingServer) Shutdown() {
+	s.srv.GracefulStop()
+}
+
+// ServeMutualTLS is an alias for Serve. It is mostly here for benchmarking.
+func (s *PingServer) ServeMutualTLS(port uint) error {
+	return s.Serve(port)
+}
+
+// ServeTLS is a helper method for server-side encryption that does not expect
+// client authentication or credentials. It is mostly here for benchmarking.
+func (s *PingServer) ServeTLS(port uint) error {
+	// Initialize server variables
+	s.sequence = make(map[string]int64)
+	addr := fmt.Sprintf(":%d", port)
+
+	// Create the TLS credentials
+	creds, err := credentials.NewServerTLSFromFile(ServerCert, ServerKey)
+	if err != nil {
+		return fmt.Errorf("could not load TLS keys: %s", err)
+	}
+
+	// Create the gRPC server with the gredentials
+	s.srv = grpc.NewServer(grpc.Creds(creds))
+
+	// Register the handler object
+	pb.RegisterSecurePingServer(s.srv, s)
+
+	// Create the channel to listen on
+	lis, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("could not listen on %s: %s", addr, err)
+	}
+
+	// Serve and Listen
+	if err := s.srv.Serve(lis); err != nil {
+		return fmt.Errorf("grpc serve error: %s", err)
+	}
+
+	return nil
+}
+
+// ServeInsecure is a helper method for no server-side encryption.
+// It is mostly here for benchmarking.
+func (s *PingServer) ServeInsecure(port uint) error {
+	// Initialize server variables
+	s.sequence = make(map[string]int64)
+	addr := fmt.Sprintf(":%d", port)
+
+	// Create the gRPC server
+	s.srv = grpc.NewServer()
+
+	// Register the handler object
+	pb.RegisterSecurePingServer(s.srv, s)
+
+	// Create the channel to listen on
+	lis, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("could not listen on %s: %s", addr, err)
+	}
+
+	// Serve and Listen
+	if err := s.srv.Serve(lis); err != nil {
 		return fmt.Errorf("grpc serve error: %s", err)
 	}
 

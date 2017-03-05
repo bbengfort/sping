@@ -95,7 +95,7 @@ func startServer(c *cli.Context) error {
 
 	go signalHandler()
 
-	server := new(sping.PingServer)
+	server := sping.NewServer()
 	err := server.Serve(c.Uint("port"))
 
 	if err != nil {
@@ -125,7 +125,7 @@ func startClient(c *cli.Context) error {
 	}
 
 	// Create the client to start pinging to.
-	client := sping.New(name, c.Int64("delay"), c.Uint("limit"))
+	client := sping.NewClient(name, c.Int64("delay"), c.Uint("limit"))
 
 	if err = client.Run(addr); err != nil {
 		return cli.NewExitError(err.Error(), 1)
