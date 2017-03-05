@@ -19,6 +19,14 @@ import (
 	pb "github.com/bbengfort/sping/echo"
 )
 
+// Server Certificates
+const (
+	ServerCert = "cert/server.crt"
+	ServerKey  = "cert/server.key"
+	ServerName = "localhost"
+	ExampleCA  = "cert/sping_example.crt"
+)
+
 // PingServer responds to Ping requests and tracks the number of messages
 // sent per sender (responding with the correct sequence).
 type PingServer struct {
@@ -70,14 +78,14 @@ func (s *PingServer) Serve(port uint) error {
 	addr := fmt.Sprintf(":%d", port)
 
 	// Load the certificates from disk
-	certificate, err := tls.LoadX509KeyPair("cert/server.crt", "cert/server.key")
+	certificate, err := tls.LoadX509KeyPair(ServerCert, ServerKey)
 	if err != nil {
 		return fmt.Errorf("could not load server key pair: %s", err)
 	}
 
 	// Create a certificate pool from the certificate authority
 	certPool := x509.NewCertPool()
-	ca, err := ioutil.ReadFile("cert/sping_example.crt")
+	ca, err := ioutil.ReadFile(ExampleCA)
 	if err != nil {
 		return fmt.Errorf("could not read ca certificate: %s", err)
 	}

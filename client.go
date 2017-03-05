@@ -16,6 +16,12 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+// Client Certificates
+const (
+	ClientCert = "cert/client.crt"
+	ClientKey  = "cert/client.key"
+)
+
 // New returns a ping client with the specified options.
 func New(name string, delay int64, limit uint) *PingClient {
 	return &PingClient{
@@ -58,14 +64,14 @@ func (c *PingClient) Run(addr string) error {
 func (c *PingClient) Ping(addr string) error {
 
 	// Load the certificates from disk
-	certificate, err := tls.LoadX509KeyPair("cert/client.crt", "cert/client.key")
+	certificate, err := tls.LoadX509KeyPair(ClientCert, ClientKey)
 	if err != nil {
 		return fmt.Errorf("could not load client key pair: %s", err)
 	}
 
 	// Create a certificate pool from the certificate authority
 	certPool := x509.NewCertPool()
-	ca, err := ioutil.ReadFile("cert/sping_example.crt")
+	ca, err := ioutil.ReadFile(ExampleCA)
 	if err != nil {
 		return fmt.Errorf("could not read ca certificate: %s", err)
 	}
@@ -77,7 +83,7 @@ func (c *PingClient) Ping(addr string) error {
 
 	// Create the TLS credentials for transport
 	creds := credentials.NewTLS(&tls.Config{
-		ServerName:   "lagoon.cs.umd.edu", // OK, so this is bad ...
+		ServerName:   ServerName,
 		Certificates: []tls.Certificate{certificate},
 		RootCAs:      certPool,
 	})
