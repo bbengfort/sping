@@ -51,6 +51,10 @@ func main() {
 					Usage: "specify the port to listen on",
 					Value: DefaultPort,
 				},
+				cli.StringFlag{
+					Name:  "n, name",
+					Usage: "specify the name of the client",
+				},
 			},
 		},
 		{

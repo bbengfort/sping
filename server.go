@@ -2,7 +2,11 @@
 package sping
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"sync"
@@ -12,7 +16,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	pb "github.com/bbengfort/pground/sping/echo"
+	pb "github.com/bbengfort/sping/echo"
 )
 
 // PingServer responds to Ping requests and tracks the number of messages
@@ -61,22 +65,44 @@ func (s *PingServer) Echo(ctx context.Context, ping *pb.Ping) (*pb.Pong, error) 
 
 // Serve ping requests from gRPC messages
 func (s *PingServer) Serve(port uint) error {
+	// Initialize server variables
 	s.sequence = make(map[string]int64)
 	addr := fmt.Sprintf(":%d", port)
 
+	// Load the certificates from disk
+	certificate, err := tls.LoadX509KeyPair("cert/server.crt", "cert/server.key")
+	if err != nil {
+		return fmt.Errorf("could not load server key pair: %s", err)
+	}
+
+	// Create a certificate pool from the certificate authority
+	certPool := x509.NewCertPool()
+	ca, err := ioutil.ReadFile("cert/sping_example.crt")
+	if err != nil {
+		return fmt.Errorf("could not read ca certificate: %s", err)
+	}
+
+	// Append the client certificates from the CA
+	if ok := certPool.AppendCertsFromPEM(ca); !ok {
+		return errors.New("failed to append client certs")
+	}
+
+	// Open a channel on the address for listening
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("could not listen on %s: %s", addr, err)
 	}
 
-	// Create TLS credentials
-	creds, err := credentials.NewServerTLSFromFile("certs/example.crt", "certs/example.key")
-	if err != nil {
-		return fmt.Errorf(("could not create TLS credentials: %s"), err)
+	// Create the TLS configuration to pass to the GRPC server
+	tlsConfig := &tls.Config{
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		Certificates: []tls.Certificate{certificate},
+		ClientCAs:    certPool,
 	}
 
 	// Create a new GRPC server with the credentials
-	srv := grpc.NewServer(grpc.Creds(creds))
+	opt := grpc.Creds(credentials.NewTLS(tlsConfig))
+	srv := grpc.NewServer(opt)
 	pb.RegisterSecurePingServer(srv, s)
 
 	if err := srv.Serve(lis); err != nil {
