@@ -1,0 +1,29 @@
+// protoc -I echo/ echo/*.proto --go_out=plugins=grpc:echo
+
+syntax = "proto3";
+
+package echo;
+
+service SecurePing {
+    rpc Echo (Ping) returns (Pong) {}
+}
+
+message Time {
+    int64 seconds = 1;
+    int64 nanoseconds = 2;
+}
+
+message Ping {
+    string sender = 1;
+    int64 sseq = 2;
+    Time sent = 3;
+    int64 ttl = 4;
+}
+
+
+message Pong {
+    bool success = 1;
+    int64 sseq = 2;
+    int64 rseq = 3;
+    Time sent = 4;
+}
