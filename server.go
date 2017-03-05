@@ -94,15 +94,14 @@ func (s *PingServer) Serve(port uint) error {
 	}
 
 	// Create the TLS configuration to pass to the GRPC server
-	tlsConfig := &tls.Config{
+	creds := credentials.NewTLS(&tls.Config{
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 		Certificates: []tls.Certificate{certificate},
 		ClientCAs:    certPool,
-	}
+	})
 
 	// Create a new GRPC server with the credentials
-	opt := grpc.Creds(credentials.NewTLS(tlsConfig))
-	srv := grpc.NewServer(opt)
+	srv := grpc.NewServer(grpc.Creds(creds))
 	pb.RegisterSecurePingServer(srv, s)
 
 	if err := srv.Serve(lis); err != nil {
