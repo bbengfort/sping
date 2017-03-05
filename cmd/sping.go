@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/bbengfort/pground/sping"
+	"github.com/bbengfort/sping"
 	"github.com/urfave/cli"
 )
 
