@@ -1,6 +1,7 @@
 package sping
 
 import (
+	"context"
 	"fmt"
 	"testing"
 )
@@ -14,34 +15,35 @@ func BenchmarkMutualTLS(b *testing.B) {
 
 	logmsgs = false
 	server = NewServer()
-	client = NewClient("tester", 100, 8)
-
 	go server.ServeMutualTLS(50051)
-	b.ResetTimer()
 
+	client = NewClient(MutualTLS, "localhost:50051", "tester", 100, 8)
+	defer client.Connection.Close()
+
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := client.PingMutualTLS("localhost:50051")
+		_, err := client.Echo(context.Background(), client.Next())
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("failed echo RPC call: %s", err)
 			break
 		}
 	}
-
 }
 
 func BenchmarkServerTLS(b *testing.B) {
 
 	logmsgs = false
 	server = NewServer()
-	client = NewClient("tester", 100, 8)
-
 	go server.ServeTLS(50052)
-	b.ResetTimer()
 
+	client = NewClient(TLS, "localhost:50052", "tester", 100, 8)
+	defer client.Connection.Close()
+
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := client.PingTLS("localhost:50052")
+		_, err := client.Echo(context.Background(), client.Next())
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("failed echo RPC call: %s", err)
 			break
 		}
 	}
@@ -51,15 +53,17 @@ func BenchmarkInsecure(b *testing.B) {
 
 	logmsgs = false
 	server = NewServer()
-	client = NewClient("tester", 100, 8)
-
 	go server.ServeInsecure(50053)
+
+	client = NewClient(Insecure, "localhost:50053", "tester", 100, 8)
+	defer client.Connection.Close()
+
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err := client.PingInsecure("localhost:50053")
+		_, err := client.Echo(context.Background(), client.Next())
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("failed echo RPC call: %s", err)
 			break
 		}
 	}

@@ -125,9 +125,10 @@ func startClient(c *cli.Context) error {
 	}
 
 	// Create the client to start pinging to.
-	client := sping.NewClient(name, c.Int64("delay"), c.Uint("limit"))
+	client := sping.NewClient(sping.MutualTLS, addr, name, c.Int64("delay"), c.Uint("limit"))
+	defer client.Connection.Close()
 
-	if err = client.Run(addr); err != nil {
+	if err = client.Run(); err != nil {
 		return cli.NewExitError(err.Error(), 1)
 	}
 
